@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VRFS Trivia · Online</title>
+
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at 20% 20%, #0b1a2e, #03070f);
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 780px;
+            background: rgba(8, 20, 36, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            border-radius: 40px;
+            padding: 35px 30px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(0, 255, 255, 0.15),
+                0 0 40px rgba(0, 180, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        /* --- Header --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+        }
+
+        .game-title {
+            font-family: 'Orbitron', monospace;
+            font-weight: 900;
+            font-size: 1.6rem;
+            background: linear-gradient(135deg, #00f0ff, #0088ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #a0c4e8;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .user-info .username {
+            color: #00f0ff;
+            font-weight: 700;
+        }
+
+        .user-info .points-badge {
+            background: rgba(0, 255, 255, 0.12);
+            padding: 4px 14px;
+            border-radius: 30px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            font-size: 0.8rem;
+        }
+
+        .btn-sm {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            color: #c0dcee;
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            font-size: 0.75rem;
+            padding: 6px 16px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-sm:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: #00f0ff;
+            color: #fff;
+        }
+
+        .btn-sm.primary {
+            background: linear-gradient(135deg, #00c8ff, #0055ff);
+            border-color: transparent;
+            color: #fff;
+        }
+        .btn-sm.primary:hover {
+            transform: scale(1.04);
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.3);
+        }
+
+        /* --- Screens --- */
+        .screen {
+            display: none;
+            animation: fadeSlide 0.4s ease-out forwards;
+        }
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeSlide {
+            0% {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- Auth Screen --- */
+        .auth-screen {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .auth-screen h2 {
+            font-family: 'Orbitron', monospace;
+            color: #e8f4ff;
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+        }
+        .auth-screen .sub {
+            color: #8ab4d6;
+            margin-bottom: 24px;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-width: 340px;
+            margin: 0 auto;
+        }
+        .auth-form input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.15);
+            border-radius: 30px;
+            padding: 14px 20px;
+            font-size: 1rem;
+            color: #e8f4ff;
+            font-family: 'Exo 2', sans-serif;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .auth-form input:focus {
+            border-color: #00f0ff;
+        }
+        .auth-form input::placeholder {
+            color: #5a7a92;
+        }
+
+        .auth-form .btn-primary {
+            background: linear-gradient(135deg, #00c8ff, #0055ff);
+            border: none;
+            color: #fff;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 14px;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .auth-form .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 40px rgba(0, 180, 255, 0.3);
+        }
+        .auth-form .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .auth-toggle {
+            color: #8ab4d6;
+            font-size: 0.9rem;
+            margin-top: 12px;
+        }
+        .auth-toggle a {
+            color: #00f0ff;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .auth-toggle a:hover {
+            color: #66ddff;
+        }
+
+        .auth-error {
+            color: #ff6666;
+            font-size: 0.9rem;
+            min-height: 24px;
+            background: rgba(255, 0, 0, 0.05);
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 0, 0, 0.1);
+        }
+
+        /* --- Start Screen --- */
+        .start-screen {
+            text-align: center;
+            padding: 10px 0;
+        }
+        .start-screen .vrfs-logo {
+            font-family: 'Orbitron', monospace;
+            font-weight: 900;
+            font-size: 3rem;
+            background: linear-gradient(135deg, #00f0ff, #0066ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+            letter-spacing: 4px;
+        }
+        .start-screen .sub {
+            color: #8ab4d6;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+        .start-screen .description {
+            color: #b6d4e8;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            max-width: 500px;
+            margin: 16px auto 24px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px 22px;
+            border-radius: 20px;
+            border-left: 3px solid #00f0ff;
+        }
+        .start-screen .description strong {
+            color: #00f0ff;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00c8ff, #0055ff);
+            border: none;
+            color: #fff;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 1.2rem;
+            padding: 16px 48px;
+            border-radius: 60px;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.3);
+            transition: all 0.25s ease;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .btn-primary:hover {
+            transform: scale(1.04);
+            box-shadow: 0 0 50px rgba(0, 180, 255, 0.5);
+            background: linear-gradient(135deg, #00d4ff, #0066ff);
+        }
+        .btn-primary:active {
+            transform: scale(0.96);
+        }
+
+        /* --- Question Screen --- */
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            color: #8ab4d6;
+            font-size: 0.85rem;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+        .question-header .q-counter {
+            background: rgba(0, 255, 255, 0.08);
+            padding: 4px 16px;
+            border-radius: 30px;
+            border: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .timer-bar {
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            margin-bottom: 18px;
+            overflow: hidden;
+        }
+        .timer-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #00f0ff, #0088ff);
+            border-radius: 10px;
+            transition: width 0.1s linear;
+        }
+        .timer-fill.warning {
+            background: linear-gradient(90deg, #ff7700, #ff2200);
+        }
+
+        .question-text {
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: #e8f4ff;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            min-height: 70px;
+            padding: 2px;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 550px) {
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .option-btn {
+            background: rgba(10, 30, 50, 0.7);
+            border: 1.5px solid rgba(0, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 14px 16px;
+            color: #d0e8ff;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Exo 2', sans-serif;
+        }
+        .option-btn .letter {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(0, 255, 255, 0.06);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            font-weight: 700;
+            color: #00f0ff;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        .option-btn:hover:not(.disabled) {
+            background: rgba(0, 200, 255, 0.12);
+            border-color: rgba(0, 255, 255, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        .option-btn.correct {
+            background: rgba(0, 255, 150, 0.15);
+            border-color: #00ff96;
+            box-shadow: 0 0 25px rgba(0, 255, 150, 0.15);
+        }
+        .option-btn.correct .letter {
+            background: #00ff96;
+            color: #000;
+            border-color: #00ff96;
+        }
+        .option-btn.wrong {
+            background: rgba(255, 50, 50, 0.15);
+            border-color: #ff4444;
+            box-shadow: 0 0 25px rgba(255, 50, 50, 0.12);
+        }
+        .option-btn.wrong .letter {
+            background: #ff4444;
+            color: #fff;
+            border-color: #ff4444;
+        }
+        .option-btn.disabled {
+            cursor: default;
+            opacity: 0.7;
+        }
+        .option-btn.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .feedback-message {
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding: 10px;
+            border-radius: 16px;
+            margin-top: 4px;
+            min-height: 44px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .feedback-message .correct-fb {
+            color: #00ff96;
+        }
+        .feedback-message .wrong-fb {
+            color: #ff6666;
+        }
+        .feedback-message .timeout-fb {
+            color: #ffaa44;
+        }
+
+        /* --- Result Screen --- */
+        .result-screen {
+            text-align: center;
+            padding: 10px 0;
+        }
+        .result-screen .big-score {
+            font-family: 'Orbitron', monospace;
+            font-weight: 900;
+            font-size: 4rem;
+            background: linear-gradient(135deg, #00f0ff, #0066ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+            margin-bottom: 2px;
+        }
+        .result-screen .score-label {
+            color: #8ab4d6;
+            font-size: 1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .result-screen .result-detail {
+            color: #b6d4e8;
+            font-size: 1rem;
+            margin: 14px 0 22px;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 14px 24px;
+            border-radius: 30px;
+            display: inline-block;
+            border: 1px solid rgba(0, 255, 255, 0.06);
+        }
+        .result-screen .result-detail span {
+            color: #00f0ff;
+            font-weight: 600;
+        }
+
+        .result-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 16px;
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1.5px solid rgba(0, 255, 255, 0.25);
+            color: #c0dcee;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 12px 28px;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 1px;
+        }
+        .btn-secondary:hover {
+            background: rgba(0, 255, 255, 0.08);
+            border-color: #00f0ff;
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        /* --- Leaderboard --- */
+        .leaderboard-section {
+            margin-top: 24px;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 20px;
+            padding: 16px 20px 20px;
+            border: 1px solid rgba(0, 255, 255, 0.06);
+        }
+        .leaderboard-section h3 {
+            font-family: 'Orbitron', monospace;
+            color: #8ab4d6;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .leaderboard-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+        .leaderboard-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            color: #c0dcee;
+            font-size: 0.85rem;
+        }
+        .leaderboard-row .rank {
+            color: #5a7a92;
+            font-weight: 600;
+            width: 30px;
+        }
+        .leaderboard-row .lb-name {
+            flex: 1;
+            padding-left: 6px;
+        }
+        .leaderboard-row .lb-score {
+            font-weight: 700;
+            color: #00f0ff;
+        }
+        .leaderboard-row.top1 .lb-score {
+            color: #ffd700;
+        }
+        .leaderboard-row.top2 .lb-score {
+            color: #c0c0c0;
+        }
+        .leaderboard-row.top3 .lb-score {
+            color: #cd7f32;
+        }
+        .leaderboard-empty {
+            color: #5a7a92;
+            text-align: center;
+            font-size: 0.85rem;
+            padding: 10px 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        .mt-1 {
+            margin-top: 8px;
+        }
+        .text-center {
+            text-align: center;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0055aa;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container" id="app">
+
+        <!-- HEADER -->
+        <div class="header">
+            <div class="game-title">VRFS TRIVIA</div>
+            <div class="header-right">
+                <div class="user-info" id="userInfo">
+                    <span class="username" id="displayUsername">Guest</span>
+                    <span class="points-badge" id="displayPoints">⭐ 0</span>
+                </div>
+                <button class="btn-sm" id="authToggleBtn">Log In</button>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- SCREEN: AUTH (login / signup) -->
+        <!-- ============================================================ -->
+        <div class="screen" id="authScreen">
+            <div class="auth-screen">
+                <h2 id="authTitle">Welcome Back</h2>
+                <div class="sub" id="authSub">Log in to save your progress</div>
+                <div class="auth-form" id="authForm">
+                    <input type="email" id="authEmail" placeholder="Email" />
+                    <input type="text" id="authUsername" placeholder="Username (for display)" />
+                    <input type="password" id="authPassword" placeholder="Password" />
+                    <input type="password" id="authPasswordConfirm" placeholder="Confirm password" />
+                    <div class="auth-error" id="authError">&nbsp;</div>
+                    <button class="btn-primary" id="authSubmitBtn" type="button">Log In</button>
+                </div>
+                <div class="auth-toggle" id="authToggle">
+                    <span id="authToggleText">Don't have an account?</span>
+                    <a id="authSwitchLink">Sign up</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- SCREEN: START -->
+        <!-- ============================================================ -->
+        <div class="screen active" id="startScreen">
+            <div class="start-screen">
+                <div class="vrfs-logo">⚽ VRFS</div>
+                <div class="sub">— COMMUNITY QUIZ —</div>
+                <div class="description">
+                    <strong>16 questions</strong> · 10‑second timer<br />
+                    Test your knowledge of VRFS updates, lore, physics, and the community.
+                    <br /><span style="color:#00f0ff;">Earn points and climb the leaderboard!</span>
+                </div>
+                <button class="btn-primary" id="startBtn">▶ START QUIZ</button>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- SCREEN: QUESTION -->
+        <!-- ============================================================ -->
+        <div class="screen" id="questionScreen">
+            <div class="question-header">
+                <span class="q-counter" id="qCounterLabel">Question 1</span>
+                <span id="timerLabel">⏱ 10s</span>
+            </div>
+            <div class="timer-bar">
+                <div class="timer-fill" id="timerFill"></div>
+            </div>
+            <div class="question-text" id="questionText">Loading...</div>
+            <div class="options-grid" id="optionsContainer"></div>
+            <div class="feedback-message" id="feedbackMessage">&nbsp;</div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- SCREEN: RESULT -->
+        <!-- ============================================================ -->
+        <div class="screen" id="resultScreen">
+            <div class="result-screen">
+                <div class="big-score" id="finalScore">0</div>
+                <div class="score-label">out of 16</div>
+                <div class="result-detail" id="resultMessage">
+                    <span>⚡</span> Nice try, champion!
+                </div>
+                <div class="result-actions">
+                    <button class="btn-secondary" id="retryBtn">🔄 PLAY AGAIN</button>
+                    <button class="btn-secondary" id="shareBtn">📤 SHARE</button>
+                </div>
+
+                <!-- Leaderboard -->
+                <div class="leaderboard-section">
+                    <h3>🏆 GLOBAL LEADERBOARD</h3>
+                    <div class="leaderboard-list" id="leaderboardList">
+                        <div class="leaderboard-empty">Loading scores...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ================================================================
+        // 1. CONFIGURATION
+        // ================================================================
+        const SUPABASE_URL = 'https://cmophogotagivatghpse.supabase.co';
+        const SUPABASE_ANON_KEY =
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtb3Bob2dvdGFnaXZhdGdocHNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTAzMDIsImV4cCI6MjA5NzcyNjMwMn0.Ff_G7vJv1vinJ4ouV-xdBR59FJoVUWekpMdc2VNpSzA';
+
+        // ================================================================
+        // 2. SAFETY NET: Check if Supabase loaded
+        // ================================================================
+        if (typeof window.supabase === 'undefined') {
+            document.body.innerHTML = `
+                <div style="color:#ff4444; text-align:center; padding:60px 20px; background: #0b1a2e; border-radius: 20px; max-width: 600px; margin: auto;">
+                    <h2 style="font-family: Orbitron, monospace;">⚠️ Connection Error</h2>
+                    <p style="color:#b6d4e8; margin-top: 16px;">Failed to load the Supabase SDK. Please check your internet connection and refresh the page.</p>
+                    <button onclick="location.reload()" style="margin-top:20px; background:#00c8ff; border:none; color:#fff; padding:12px 30px; border-radius:40px; cursor:pointer; font-weight:bold;">Refresh</button>
+                </div>
+            `;
+            throw new Error('Supabase SDK failed to load');
+        }
+
+        // ================================================================
+        // 3. INIT SUPABASE
+        // ================================================================
+        let supabase;
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ VRFS Trivia connected to Supabase');
+        } catch (err) {
+            document.body.innerHTML = `
+                <div style="color:#ff4444; text-align:center; padding:60px 20px; background: #0b1a2e; border-radius: 20px; max-width: 600px; margin: auto;">
+                    <h2 style="font-family: Orbitron, monospace;">⚠️ Setup Error</h2>
+                    <p style="color:#b6d4e8; margin-top: 16px;">${err.message}</p>
+                    <button onclick="location.reload()" style="margin-top:20px; background:#00c8ff; border:none; color:#fff; padding:12px 30px; border-radius:40px; cursor:pointer; font-weight:bold;">Retry</button>
+                </div>
+            `;
+            throw err;
+        }
+
+        // ================================================================
+        // 4. QUESTION BANK
+        // ================================================================
+        const QUESTIONS = [{
+            question: 'Which update introduced the "Camera Ball," allowing you to temporarily become the ball itself?',
+            options: ['Update 102', 'Update 108', 'Update 97', 'Update 115'],
+            correct: 1
+        }, {
+            question: 'What is the "Augmented Vision Headset" from Update 0.5.2 designed to display?',
+            options: ['Opponent heart rate', 'Ball trajectory & kick stats', 'Mini-map of the arena',
+                'Chat messages'
+            ],
+            correct: 1
+        }, {
+            question: 'In which update was the "Goalie Clash" mode added, where you\'re locked to your half with multiple balls?',
+            options: ['Update 68', 'Update 71', 'Update 74', 'Update 63'],
+            correct: 1
+        }, {
+            question: 'What was the main feature added in Update 0.4.6 for practicing with friends?',
+            options: ['Cross-platform invites', 'In-field bots on custom arenas', 'Replay system',
+                'Voice chat'
+            ],
+            correct: 1
+        }, {
+            question: 'What was the simple, pure inspiration for creating VRFS?',
+            options: ['To mimic FIFA in VR', 'To win a game jam', 'To make a VR game the devs would love to play',
+                'To test new VR hardware'
+            ],
+            correct: 2
+        }, {
+            question: 'How did the game\'s developer, Oleg, describe the core gameplay of VRFS?',
+            options: ['"VR rocket league"', '"Football-themed ping-pong"', '"Full 11v11 simulation"',
+                '"Party game with goals"'
+            ],
+            correct: 1
+        }, {
+            question: 'When was VRFS officially released on the Meta Quest platform?',
+            options: ['December 12, 2022', 'February 3, 2023', 'April 20, 2023', 'June 1, 2022'],
+            correct: 1
+        }, {
+            question: 'What is the name of the massive in-game event featuring 48 countries?',
+            options: ['World Cup VR', 'Global Kickoff', 'World Tour \'26', 'Nations Clash'],
+            correct: 2
+        }, {
+            question: 'Does VRFS have a "pay-to-win" model where you buy stronger kicks or faster boots?',
+            options: ['Yes, in the shop', 'Only for cosmetics', 'No, only skills matter', 'Yes, but only in ranked'],
+            correct: 2
+        }, {
+            question: 'What is one of the core focuses of VRFS\'s design philosophy?',
+            options: ['Realistic physics', 'Arcade-style power-ups', 'Turn-based strategy', 'Auto-aim mechanics'],
+            correct: 0
+        }, {
+            question: 'Which major community-run league is known as one of the biggest and most competitive in VRFS?',
+            options: ['VFL (VR Football League)', 'SSL (Super Soccer League)', 'UVR (United VR League)',
+                'GFL (Global Football League)'
+            ],
+            correct: 1
+        }, {
+            question: 'Roughly how many active members are in the main VRFS Discord community?',
+            options: ['10,000+', '30,000+', '70,000+', '100,000+'],
+            correct: 2
+        }, {
+            question: 'In VRFS, what does the "Clash-Stars" competitive scene primarily revolve around?',
+            options: ['1v1 duels', '5v5 team matches', 'Free-for-all goal scoring', 'Obstacle course races'],
+            correct: 1
+        }, {
+            question: 'Which update introduced the ability to customize your own arena colors and patterns?',
+            options: ['Update 0.6.1', 'Update 0.7.0', 'Update 0.5.8', 'Update 0.8.3'],
+            correct: 0
+        }, {
+            question: 'What is the name of the VRFS bot that helps new players learn the basics in the training ground?',
+            options: ['Coach K', 'Trainee Bot X', 'Practice Dummy', 'There is no official bot name'],
+            correct: 3
+        }, {
+            question: 'Which VRFS mode challenges you to score in a moving goal while avoiding obstacles?',
+            options: ['Obstacle Course', 'Target Practice', 'Moving Goal Challenge', 'Dodge & Shoot'],
+            correct: 2
+        }];
+
+        // ================================================================
+        // 5. GAME STATE
+        // ================================================================
+        let shuffledQuestions = [];
+        let currentIndex = 0;
+        let score = 0;
+        let timer = 10;
+        let timerInterval = null;
+        let isAnswered = false;
+        const TOTAL = QUESTIONS.length;
+
+        // ================================================================
+        // 6. DOM REFS
+        // ================================================================
+        const startScreen = document.getElementById('startScreen');
+        const authScreen = document.getElementById('authScreen');
+        const questionScreen = document.getElementById('questionScreen');
+        const resultScreen = document.getElementById('resultScreen');
+
+        const startBtn = document.getElementById('startBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const shareBtn = document.getElementById('shareBtn');
+
+        const questionText = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const qCounterLabel = document.getElementById('qCounterLabel');
+        const timerLabel = document.getElementById('timerLabel');
+        const timerFill = document.getElementById('timerFill');
+        const finalScore = document.getElementById('finalScore');
+        const resultMessage = document.getElementById('resultMessage');
+
+        const displayUsername = document.getElementById('displayUsername');
+        const displayPoints = document.getElementById('displayPoints');
+        const authToggleBtn = document.getElementById('authToggleBtn');
+
+        const leaderboardList = document.getElementById('leaderboardList');
+
+        // Auth elements
+        const authTitle = document.getElementById('authTitle');
+        const authSub = document.getElementById('authSub');
+        const authEmail = document.getElementById('authEmail');
+        const authUsername = document.getElementById('authUsername');
+        const authPassword = document.getElementById('authPassword');
+        const authPasswordConfirm = document.getElementById('authPasswordConfirm');
+        const authSubmitBtn = document.getElementById('authSubmitBtn');
+        const authError = document.getElementById('authError');
+        const authSwitchLink = document.getElementById('authSwitchLink');
+        const authToggleText = document.getElementById('authToggleText');
+
+        let isLoginMode = true;
+
+        // ================================================================
+        // 7. AUTHENTICATION
+        // ================================================================
+        let currentUser = null;
+        let currentProfile = null;
+
+        async function loadSession() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    currentUser = session.user;
+                    await loadProfile(currentUser.id);
+                    updateUIForUser();
+                    showScreen('startScreen');
+                } else {
+                    showScreen('authScreen');
+                }
+            } catch (err) {
+                console.error('Session load error:', err);
+                authError.textContent = 'Failed to connect. Please refresh.';
+                showScreen('authScreen');
+            }
+        }
+
+        async function loadProfile(userId) {
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .maybeSingle();
+                if (error) throw error;
+                if (data) {
+                    currentProfile = data;
+                } else {
+                    // fallback insert (if trigger missed)
+                    const { data: newProfile, error: insertError } = await supabase
+                        .from('profiles')
+                        .insert([{ id: userId, username: 'Player_' + userId.slice(0, 6), total_points: 0,
+                            games_played: 0 }])
+                        .select()
+                        .single();
+                    if (insertError) throw insertError;
+                    currentProfile = newProfile;
+                }
+                updateUIForUser();
+            } catch (err) {
+                console.error('Profile load error:', err);
+                // Still show the user as logged in but without profile data
+                currentProfile = { username: 'Player', total_points: 0 };
+                updateUIForUser();
+            }
+        }
+
+        function updateUIForUser() {
+            if (currentUser) {
+                displayUsername.textContent = currentProfile?.username || 'Player';
+                displayPoints.textContent = '⭐ ' + (currentProfile?.total_points || 0);
+                authToggleBtn.textContent = 'Log Out';
+            } else {
+                displayUsername.textContent = 'Guest';
+                displayPoints.textContent = '⭐ 0';
+                authToggleBtn.textContent = 'Log In';
+            }
+        }
+
+        // --- Switch between Login / Signup ---
+        function switchAuthMode() {
+            isLoginMode = !isLoginMode;
+            if (isLoginMode) {
+                authTitle.textContent = 'Welcome Back';
+                authSub.textContent = 'Log in to save your progress';
+                authSubmitBtn.textContent = 'Log In';
+                authToggleText.textContent = "Don't have an account?";
+                authSwitchLink.textContent = "Sign up";
+                authUsername.style.display = 'none';
+                authPasswordConfirm.style.display = 'none';
+            } else {
+                authTitle.textContent = 'Join the Community';
+                authSub.textContent = 'Create your VRFS Trivia account';
+                authSubmitBtn.textContent = 'Sign Up';
+                authToggleText.textContent = "Already have an account?";
+                authSwitchLink.textContent = "Log in";
+                authUsername.style.display = 'block';
+                authPasswordConfirm.style.display = 'block';
+            }
+            authError.textContent = '\u00A0';
+        }
+
+        authSwitchLink.addEventListener('click', switchAuthMode);
+        // Set initial state (Login mode)
+        authUsername.style.display = 'none';
+        authPasswordConfirm.style.display = 'none';
+
+        // --- Submit Login / Signup ---
+        authSubmitBtn.addEventListener('click', async () => {
+            const email = authEmail.value.trim();
+            const password = authPassword.value;
+            const username = authUsername.value.trim();
+            const passwordConfirm = authPasswordConfirm.value;
+
+            authError.textContent = '';
+
+            if (!email || !password) {
+                authError.textContent = 'Email and password are required.';
+                return;
+            }
+
+            // Disable button to prevent double clicks
+            authSubmitBtn.disabled = true;
+            authSubmitBtn.textContent = 'Processing...';
+
+            try {
+                if (isLoginMode) {
+                    // LOGIN
+                    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    currentUser = data.user;
+                    await loadProfile(currentUser.id);
+                    updateUIForUser();
+                    showScreen('startScreen');
+                } else {
+                    // SIGNUP
+                    if (password !== passwordConfirm) {
+                        authError.textContent = 'Passwords do not match.';
+                        authSubmitBtn.disabled = false;
+                        authSubmitBtn.textContent = 'Sign Up';
+                        return;
+                    }
+                    if (password.length < 6) {
+                        authError.textContent = 'Password must be at least 6 characters.';
+                        authSubmitBtn.disabled = false;
+                        authSubmitBtn.textContent = 'Sign Up';
+                        return;
+                    }
+                    if (!username) {
+                        authError.textContent = 'Please choose a username.';
+                        authSubmitBtn.disabled = false;
+                        authSubmitBtn.textContent = 'Sign Up';
+                        return;
+                    }
+                    const { data, error } = await supabase.auth.signUp({
+                        email,
+                        password,
+                        options: { data: { username } }
+                    });
+                    if (error) throw error;
+                    if (data.user) {
+                        currentUser = data.user;
+                        // Wait for DB trigger
+                        await new Promise(r => setTimeout(r, 1000));
+                        await loadProfile(currentUser.id);
+                        updateUIForUser();
+                        showScreen('startScreen');
+                    } else {
+                        authError.textContent = 'Sign-up failed. Please try again.';
+                    }
+                }
+            } catch (err) {
+                authError.textContent = err.message || 'Authentication failed.';
+                console.error('Auth error:', err);
+            } finally {
+                authSubmitBtn.disabled = false;
+                authSubmitBtn.textContent = isLoginMode ? 'Log In' : 'Sign Up';
+            }
+        });
+
+        // --- Log Out ---
+        authToggleBtn.addEventListener('click', async () => {
+            if (currentUser) {
+                await supabase.auth.signOut();
+                currentUser = null;
+                currentProfile = null;
+                updateUIForUser();
+                showScreen('authScreen');
+                // Reset auth form
+                authEmail.value = '';
+                authPassword.value = '';
+                authUsername.value = '';
+                authPasswordConfirm.value = '';
+                authError.textContent = '\u00A0';
+            } else {
+                showScreen('authScreen');
+            }
+        });
+
+        // ================================================================
+        // 8. SCREEN HELPERS
+        // ================================================================
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function formatLetter(index) {
+            return String.fromCharCode(65 + index);
+        }
+
+        // ================================================================
+        // 9. TIMER
+        // ================================================================
+        function startTimer() {
+            clearInterval(timerInterval);
+            timer = 10;
+            updateTimerUI();
+            timerInterval = setInterval(() => {
+                timer -= 1;
+                updateTimerUI();
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeout();
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            timerLabel.textContent = '⏱ ' + timer + 's';
+            const pct = (timer / 10) * 100;
+            timerFill.style.width = pct + '%';
+            timerFill.classList.toggle('warning', timer <= 3);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        // ================================================================
+        // 10. TIMEOUT & ANSWER HANDLING
+        // ================================================================
+        function handleTimeout() {
+            if (isAnswered) return;
+            isAnswered = true;
+            const current = shuffledQuestions[currentIndex];
+            const correctIdx = current.correct;
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach((btn, idx) => {
+                btn.classList.add('disabled');
+                if (idx === correctIdx) btn.classList.add('correct');
+            });
+            feedbackMessage.innerHTML =
+                `<span class="timeout-fb">⏰ Time's up! The correct answer was <strong>${formatLetter(correctIdx)}</strong>.</span>`;
+            setTimeout(() => { stopTimer();
+                goToNextQuestion(); }, 2200);
+        }
+
+        function handleOptionClick(selectedIdx) {
+            if (isAnswered) return;
+            isAnswered = true;
+            stopTimer();
+
+            const current = shuffledQuestions[currentIndex];
+            const correctIdx = current.correct;
+            const btns = document.querySelectorAll('.option-btn');
+            const isCorrect = (selectedIdx === correctIdx);
+            if (isCorrect) score += 1;
+
+            btns.forEach((btn, idx) => {
+                btn.classList.add('disabled');
+                if (idx === correctIdx) btn.classList.add('correct');
+                else if (idx === selectedIdx && !isCorrect) btn.classList.add('wrong');
+            });
+
+            feedbackMessage.innerHTML = isCorrect ?
+                `<span class="correct-fb">✅ Correct! Well played.</span>` :
+                `<span class="wrong-fb">❌ Oops! The correct answer was <strong>${formatLetter(correctIdx)}</strong>.</span>`;
+
+            setTimeout(() => { goToNextQuestion(); }, 2000);
+        }
+
+        // ================================================================
+        // 11. RENDER QUESTION
+        // ================================================================
+        function renderQuestion(index) {
+            const q = shuffledQuestions[index];
+            if (!q) return;
+            isAnswered = false;
+            questionText.textContent = q.question;
+            qCounterLabel.textContent = 'Question ' + (index + 1);
+
+            feedbackMessage.innerHTML = '\u00A0';
+            optionsContainer.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerHTML = `<span class="letter">${formatLetter(idx)}</span> ${opt}`;
+                btn.dataset.index = idx;
+                btn.addEventListener('click', () => handleOptionClick(idx));
+                optionsContainer.appendChild(btn);
+            });
+
+            timerFill.classList.remove('warning');
+            timerFill.style.width = '100%';
+            timerLabel.textContent = '⏱ 10s';
+            startTimer();
+        }
+
+        function goToNextQuestion() {
+            currentIndex++;
+            if (currentIndex < shuffledQuestions.length) {
+                renderQuestion(currentIndex);
+            } else {
+                showResult();
+            }
+        }
+
+        // ================================================================
+        // 12. RESULT + LEADERBOARD + REWARDS
+        // ================================================================
+        async function showResult() {
+            stopTimer();
+            showScreen('resultScreen');
+            finalScore.textContent = score;
+
+            const pct = Math.round((score / TOTAL) * 100);
+            let msg = '';
+            if (pct === 100) msg = '🏆 PERFECT! You\'re a VRFS legend!';
+            else if (pct >= 80) msg = '⭐ Outstanding! You truly know your VRFS.';
+            else if (pct >= 60) msg = '👏 Solid! You\'re a true fan. Keep it up!';
+            else if (pct >= 40) msg = '📖 Good effort! Time to read the patch notes.';
+            else msg = '🔁 Oof. Maybe stick to the pitch, not the trivia!';
+            resultMessage.innerHTML = `<span>${msg}</span>`;
+
+            // Save score if logged in
+            if (currentUser && currentProfile) {
+                try {
+                    // Insert score
+                    await supabase
+                        .from('scores')
+                        .insert([{ user_id: currentUser.id, username: currentProfile.username, score: score }]);
+
+                    // Update profile
+                    const newPoints = (currentProfile.total_points || 0) + score;
+                    const newGames = (currentProfile.games_played || 0) + 1;
+                    const { error: updateError } = await supabase
+                        .from('profiles')
+                        .update({ total_points: newPoints, games_played: newGames })
+                        .eq('id', currentUser.id);
+                    if (!updateError) {
+                        currentProfile.total_points = newPoints;
+                        currentProfile.games_played = newGames;
+                        updateUIForUser();
+                    }
+
+                    // Rewards
+                    await checkAndAwardRewards(score);
+                } catch (err) {
+                    console.error('Error saving score:', err);
+                }
+            }
+
+            await loadLeaderboard();
+        }
+
+        // ----- REWARDS -----
+        async function checkAndAwardRewards(quizScore) {
+            if (!currentUser) return;
+            const userId = currentUser.id;
+            const rewards = [];
+
+            if (quizScore === TOTAL) rewards.push('perfect_score');
+            if (quizScore >= Math.round(TOTAL * 0.8)) rewards.push('trivia_master');
+            if ((currentProfile.games_played || 0) === 0) rewards.push('first_game');
+
+            for (const type of rewards) {
+                try {
+                    const { data: existing } = await supabase
+                        .from('rewards')
+                        .select('id')
+                        .eq('user_id', userId)
+                        .eq('reward_type', type)
+                        .maybeSingle();
+                    if (!existing) {
+                        await supabase.from('rewards').insert([{ user_id: userId, reward_type: type }]);
+                        console.log('🏅 Reward unlocked:', type);
+                    }
+                } catch (e) { /* ignore */ }
+            }
+        }
+
+        // ----- LEADERBOARD -----
+        async function loadLeaderboard() {
+            leaderboardList.innerHTML = '<div class="leaderboard-empty">Loading scores...</div>';
+            try {
+                const { data, error } = await supabase
+                    .from('scores')
+                    .select('username, score')
+                    .order('score', { ascending: false })
+                    .limit(10);
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    leaderboardList.innerHTML = '<div class="leaderboard-empty">No scores yet. Be the first!</div>';
+                    return;
+                }
+                leaderboardList.innerHTML = '';
+                data.forEach((row, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'leaderboard-row';
+                    if (idx === 0) div.classList.add('top1');
+                    if (idx === 1) div.classList.add('top2');
+                    if (idx === 2) div.classList.add('top3');
+                    div.innerHTML = `
+                        <span class="rank">#${idx + 1}</span>
+                        <span class="lb-name">${row.username || 'Anonymous'}</span>
+                        <span class="lb-score">${row.score}</span>
+                    `;
+                    leaderboardList.appendChild(div);
+                });
+            } catch (err) {
+                console.error('Leaderboard error:', err);
+                leaderboardList.innerHTML = '<div class="leaderboard-empty">Could not load leaderboard.</div>';
+            }
+        }
+
+        // ================================================================
+        // 13. START / RESET
+        // ================================================================
+        function resetAndStart() {
+            if (!currentUser) {
+                showScreen('authScreen');
+                return;
+            }
+            stopTimer();
+            shuffledQuestions = shuffleArray([...QUESTIONS]);
+            currentIndex = 0;
+            score = 0;
+            showScreen('questionScreen');
+            renderQuestion(0);
+        }
+
+        // ================================================================
+        // 14. SHARE
+        // ================================================================
+        function shareScore() {
+            const text = `I scored ${score}/${TOTAL} on the VRFS Community Trivia! ⚽ Can you beat me? #VRFS`;
+            if (navigator.share) {
+                navigator.share({ title: 'VRFS Trivia', text }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Score copied to clipboard! Share it with the community.');
+                }).catch(() => {
+                    prompt('Copy this to share:', text);
+                });
+            }
+        }
+
+        // ================================================================
+        // 15. EVENT BINDINGS
+        // ================================================================
+        startBtn.addEventListener('click', resetAndStart);
+        retryBtn.addEventListener('click', resetAndStart);
+        shareBtn.addEventListener('click', shareScore);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '1' && e.key <= '4') {
+                const idx = parseInt(e.key) - 1;
+                const btns = document.querySelectorAll('.option-btn:not(.disabled)');
+                if (btns[idx]) btns[idx].click();
+            }
+            if (e.key === 'Enter' && startScreen.classList.contains('active')) {
+                startBtn.click();
+            }
+        });
+
+        // ================================================================
+        // 16. INIT
+        // ================================================================
+        loadSession();
+    </script>
+</body>
+</html>
