@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet" />
 
-    <!-- Tiny favicon to avoid 404 error -->
+    <!-- Tiny favicon to avoid 404 -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
 
     <style>
@@ -372,11 +372,32 @@
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #0055aa; border-radius: 10px; }
+
+        /* --- Error overlay (debug) --- */
+        #globalError {
+            display: none;
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border: 2px solid #ff6666;
+            text-align: left;
+        }
+        #globalError.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
 
     <div class="game-container" id="app">
+
+        <!-- Debug Error Box -->
+        <div id="globalError"></div>
 
         <!-- HEADER -->
         <div class="header">
@@ -463,10 +484,29 @@
 
     <script>
         // ================================================================
-        // EVERYTHING IS WRAPPED IN A "BOX" (IIFE) TO PREVENT 
-        // "IDENTIFIER ALREADY DECLARED" ERRORS
+        // GLOBAL ERROR CATCHER - shows errors on screen
         // ================================================================
-        (function() {
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errorBox = document.getElementById('globalError');
+            if (errorBox) {
+                errorBox.classList.add('show');
+                errorBox.innerHTML = `
+                    <strong>💥 JavaScript Error:</strong><br><br>
+                    ${message}<br><br>
+                    <span style="font-size:0.8rem; opacity:0.7;">
+                        ${source} line ${lineno}:${colno}
+                    </span>
+                `;
+            }
+            return true; // prevent default browser error
+        };
+
+        // ================================================================
+        // WRAP EVERYTHING IN DOMContentLoaded TO ENSURE DOM IS READY
+        // ================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+
+            console.log('🚀 VRFS Trivia: DOM loaded, starting script...');
 
             // ============================================================
             // 1. CONFIGURATION
@@ -479,18 +519,17 @@
             // 2. SAFETY CHECK: Did Supabase SDK load?
             // ============================================================
             if (typeof window.supabase === 'undefined') {
-                document.body.innerHTML = `
-                    <div style="color:#ff4444; text-align:center; padding:60px 20px; background: #0b1a2e; border-radius: 20px; max-width: 600px; margin: auto;">
-                        <h2 style="font-family: Orbitron, monospace;">⚠️ Connection Error</h2>
-                        <p style="color:#b6d4e8; margin-top: 16px;">Failed to load the Supabase SDK. Please check your internet connection and refresh.</p>
-                        <button onclick="location.reload()" style="margin-top:20px; background:#00c8ff; border:none; color:#fff; padding:12px 30px; border-radius:40px; cursor:pointer; font-weight:bold;">Refresh</button>
-                    </div>
+                document.getElementById('globalError').classList.add('show');
+                document.getElementById('globalError').innerHTML = `
+                    <strong>⚠️ Supabase SDK not loaded</strong><br><br>
+                    Please check your internet connection and refresh the page.
                 `;
-                return; // Stop execution
+                console.error('Supabase SDK missing');
+                return;
             }
 
             // ============================================================
-            // 3. INIT SUPABASE (SAFE INSIDE THE IIFE)
+            // 3. INIT SUPABASE
             // ============================================================
             const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             console.log('✅ VRFS Trivia connected to Supabase');
@@ -589,7 +628,7 @@
             let isLoginMode = true;
 
             // ============================================================
-            // 6. DOM REFS
+            // 6. DOM REFS (with null checks)
             // ============================================================
             const startScreen = document.getElementById('startScreen');
             const authScreen = document.getElementById('authScreen');
@@ -620,6 +659,19 @@
             const authError = document.getElementById('authError');
             const authSwitchLink = document.getElementById('authSwitchLink');
             const authToggleText = document.getElementById('authToggleText');
+
+            // Safety check: if any critical element is missing, show error
+            if (!startBtn || !authSubmitBtn || !authSwitchLink) {
+                document.getElementById('globalError').classList.add('show');
+                document.getElementById('globalError').innerHTML = `
+                    <strong>⚠️ DOM Error</strong><br><br>
+                    Critical buttons not found. Please check the HTML structure.
+                `;
+                console.error('Critical DOM elements missing');
+                return;
+            }
+
+            console.log('✅ All DOM elements found');
 
             // ============================================================
             // 7. AUTHENTICATION
@@ -704,11 +756,18 @@
                 authError.textContent = '\u00A0';
             }
 
-            authSwitchLink.addEventListener('click', switchAuthMode);
-            authUsername.style.display = 'none';
-            authPasswordConfirm.style.display = 'none';
+            // --- Attach event listeners ---
+            console.log('📌 Attaching event listeners...');
 
-            authSubmitBtn.addEventListener('click', async () => {
+            authSwitchLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('🔄 Auth switch clicked');
+                switchAuthMode();
+            });
+
+            authSubmitBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                console.log('🔑 Auth submit clicked');
                 const email = authEmail.value.trim();
                 const password = authPassword.value;
                 const username = authUsername.value.trim();
@@ -732,6 +791,7 @@
                         await loadProfile(currentUser.id);
                         updateUIForUser();
                         showScreen('startScreen');
+                        console.log('✅ Login successful');
                     } else {
                         if (password !== passwordConfirm) {
                             authError.textContent = 'Passwords do not match.';
@@ -763,6 +823,7 @@
                             await loadProfile(currentUser.id);
                             updateUIForUser();
                             showScreen('startScreen');
+                            console.log('✅ Signup successful');
                         } else {
                             authError.textContent = 'Sign-up failed. Please try again.';
                         }
@@ -776,7 +837,8 @@
                 }
             });
 
-            authToggleBtn.addEventListener('click', async () => {
+            authToggleBtn.addEventListener('click', async function(e) {
+                console.log('👤 Auth toggle (Log Out/In) clicked');
                 if (currentUser) {
                     await supabase.auth.signOut();
                     currentUser = null;
@@ -788,17 +850,37 @@
                     authUsername.value = '';
                     authPasswordConfirm.value = '';
                     authError.textContent = '\u00A0';
+                    console.log('✅ Logged out');
                 } else {
                     showScreen('authScreen');
                 }
             });
+
+            startBtn.addEventListener('click', function(e) {
+                console.log('▶️ Start Quiz clicked');
+                resetAndStart();
+            });
+
+            retryBtn.addEventListener('click', function(e) {
+                console.log('🔄 Retry clicked');
+                resetAndStart();
+            });
+
+            shareBtn.addEventListener('click', function(e) {
+                console.log('📤 Share clicked');
+                shareScore();
+            });
+
+            console.log('✅ All event listeners attached');
 
             // ============================================================
             // 8. SCREEN HELPERS
             // ============================================================
             function showScreen(screenId) {
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-                document.getElementById(screenId).classList.add('active');
+                const target = document.getElementById(screenId);
+                if (target) target.classList.add('active');
+                console.log('🖥️ Switched to screen:', screenId);
             }
 
             function shuffleArray(arr) {
@@ -1034,6 +1116,7 @@
                 score = 0;
                 showScreen('questionScreen');
                 renderQuestion(0);
+                console.log('🎮 Game started');
             }
 
             // ============================================================
@@ -1053,12 +1136,8 @@
             }
 
             // ============================================================
-            // 15. EVENT BINDINGS
+            // 15. KEYBOARD SHORTCUTS
             // ============================================================
-            startBtn.addEventListener('click', resetAndStart);
-            retryBtn.addEventListener('click', resetAndStart);
-            shareBtn.addEventListener('click', shareScore);
-
             document.addEventListener('keydown', (e) => {
                 if (e.key >= '1' && e.key <= '4') {
                     const idx = parseInt(e.key) - 1;
@@ -1073,9 +1152,10 @@
             // ============================================================
             // 16. INIT
             // ============================================================
+            console.log('🚀 Initializing...');
             loadSession();
 
-        })(); // <-- End of the "box" (IIFE)
+        }); // end DOMContentLoaded
     </script>
 </body>
 </html>
